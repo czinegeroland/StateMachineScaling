@@ -12,15 +12,28 @@ builder.Services.AddMassTransit(busConfigurator =>
 {
     ConnectionFactory.DefaultAddressFamily = AddressFamily.InterNetwork;
 
-    busConfigurator.AddSagaStateMachine<OrderStateMachine, OrderState>((context, cfg) =>
-    {
-        cfg.UseMessageRetry(_ => _.Immediate(1));
-        cfg.UseInMemoryOutbox(context);
-    })
-    .RedisRepository("merry-filly-*********.upstash.io:6379,password=********************************,ssl=True,abortConnect=False");
+    busConfigurator
+        .AddSagaStateMachine<OrderStateMachine, OrderState>()
+        .Endpoint(_ => _.AddConfigureEndpointCallback((context, cfg) =>
+        {
+            cfg.UseMessageRetry(_ => _.Immediate(1));
+            cfg.UseInMemoryInboxOutbox(context);
+        }))
+        .RedisRepository("merry-filly-*********.upstash.io:6379,password=********************************,ssl=True,abortConnect=False");
 
-    busConfigurator.AddConsumer<ProcessPaymentConsumer>(_ => _.UseMessageRetry(_ => _.Immediate(2)));
-    busConfigurator.AddConsumer<ShipOrderConsumer>(_ => _.UseMessageRetry(_ => _.Immediate(2)));
+    busConfigurator
+        .AddConsumer<ProcessPaymentConsumer>()
+        .Endpoint(_ => _.AddConfigureEndpointCallback((context, cfg) =>
+        {
+            cfg.UseMessageRetry(_ => _.Immediate(2));
+        }));
+   
+    busConfigurator
+        .AddConsumer<ShipOrderConsumer>()
+        .Endpoint(_ => _.AddConfigureEndpointCallback((context, cfg) =>
+        {
+            cfg.UseMessageRetry(_ => _.Immediate(2));
+        }));
 
     busConfigurator.SetKebabCaseEndpointNameFormatter();
 
